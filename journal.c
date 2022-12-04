@@ -294,7 +294,7 @@ void request_write(struct write_request *wr) {
     sem_wait(&bufferEmpty1);
     enqueue(wr, &requestBuffer);
     sem_post(&bufferFull1);
-    // sleep(5);
+
 }
 
 /* This function is called by the block service when writing the txb block
