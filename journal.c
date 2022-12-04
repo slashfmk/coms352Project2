@@ -62,7 +62,7 @@ struct write_request dequeue(struct queue *q) {
     struct write_request ex = q->entries[0];
     struct write_request temp;
 
-   // while()
+    // while()
 
     for (int i = 0; i < q->queueTracker; i++) {
         temp = q->entries[i + 1];
@@ -110,17 +110,14 @@ pthread_mutex_t lock2;
 pthread_mutex_t lock3;
 
 // Semaphores
-sem_t semEmpty0;
-sem_t semFull0;
+sem_t bufferEmpty1;
+sem_t bufferFull1;
 
-sem_t semEmpty1;
-sem_t semFull1;
+sem_t bufferEmpty2;
+sem_t bufferFull2;
 
-sem_t semEmpty2;
-sem_t semFull2;
-
-sem_t semEmpty3;
-sem_t semFull3;
+sem_t bufferEmpty3;
+sem_t bufferFull3;
 
 
 void *journalRequestWrite(void *args);
@@ -144,17 +141,15 @@ void init_journal() {
     pthread_mutex_init(&lock3, NULL);
 
     // Init Semaphores
-    sem_init(&semEmpty0, 0, BUFFER_SIZE); // initially  BUFFER_SIZE place Empty
-    sem_init(&semFull0, 0, 0); // initially not full (0 place full)
+    sem_init(&bufferEmpty1, 0, BUFFER_SIZE); // initially  BUFFER_SIZE place Empty
+    sem_init(&bufferFull1, 0, 0); // initially not full (0 place full)
 
-    sem_init(&semEmpty1, 0, BUFFER_SIZE); // initially  BUFFER_SIZE place Empty
-    sem_init(&semFull1, 0, 0); // initially not full (0 place full)
+    sem_init(&bufferEmpty2, 0, BUFFER_SIZE); // initially  BUFFER_SIZE place Empty
+    sem_init(&bufferFull2, 0, 0); // initially not full (0 place full)
 
-    sem_init(&semEmpty2, 0, BUFFER_SIZE);
-    sem_init(&semFull2, 0, 0);
+    sem_init(&bufferEmpty3, 0, BUFFER_SIZE); // initially  BUFFER_SIZE place Empty
+    sem_init(&bufferFull3, 0, 0); // initially not full (0 place full)
 
-    sem_init(&semEmpty3, 0, BUFFER_SIZE);
-    sem_init(&semFull3, 0, 0);
 
     // threads init
     if (pthread_create(&threadsArray[0], NULL, &journalRequestWrite, NULL) != 0) {
@@ -177,15 +172,14 @@ void init_journal() {
     pthread_mutex_destroy(&lock2);
     pthread_mutex_destroy(&lock3);
 
-    sem_destroy(&semEmpty0);
-    sem_destroy(&semFull0);
+    sem_destroy(&bufferEmpty1);
+    sem_destroy(&bufferFull1);
 
-    sem_destroy(&semEmpty1);
-    sem_destroy(&semFull1);
-    sem_destroy(&semEmpty2);
-    sem_destroy(&semFull2);
-    sem_destroy(&semEmpty3);
-    sem_destroy(&semFull3);
+    sem_destroy(&bufferEmpty2);
+    sem_destroy(&bufferFull2);
+
+    sem_destroy(&bufferEmpty3);
+    sem_destroy(&bufferFull3);
 
 //    sleep(10);
 }
@@ -193,35 +187,27 @@ void init_journal() {
 // check if request buffer is not empty
 void *journalRequestWrite(void *args) {
     while (1) {
-        // if there is something in the request buffer queue
-       // sem_wait(&semFull1);
-        // we dequeue the request buffer
-        sem_wait(&semFull0);
+
+        sem_wait(&bufferFull1);
         pthread_mutex_lock(&lock1);
-       // if (!isQueueEmpty(&requestBuffer)) {
-            // qDisplay(&requestBuffer);
-            struct write_request takenOutItem = dequeue(&requestBuffer);
-            sem_post(&semEmpty0);
+        // if (!isQueueEmpty(&requestBuffer)) {
+        // qDisplay(&requestBuffer);
+        struct write_request takenOutItem = dequeue(&requestBuffer);
+        sem_post(&bufferEmpty1);
+        //  printf("****** Dequeue from byffer1 ******\n");
+        //TODO work need to be done!
+        // call functions to write data and metadata
+        // wait for all issued write to complete
+        // once done enqueu
+        writeData(&takenOutItem);
 
-          //  printf("****** Dequeue from byffer1 ******\n");
-            //TODO work need to be done!
-            // call functions to write data and metadata
-            // wait for all issued write to complete
-            // once done enqueu
-            writeData(&takenOutItem);
-          //  printf("****** Enqueued in Buffer 2 ******\n");
-            // check if next buffer is available before enqueuing to it
-            sem_wait(&semEmpty2);
-            enqueue(&takenOutItem, &journalMetaBuffer);
-            sem_post(&semFull2);
+        sem_wait(&bufferEmpty2);
+        enqueue(&takenOutItem, &journalMetaBuffer);
+        sem_post(&bufferFull2);
+        //  printf("****** Enqueued in Buffer 2 ******\n");
+        // check if next buffer is available before enqueuing to it
 
-//        } else {
-//            qDisplay(&requestBuffer);
-//            printf("Wasted CPU time thread 1\n");
-//        }
         pthread_mutex_unlock(&lock1);
-       // sem_post(&semEmpty1);
-
 
         // sleep(8);
     }
@@ -232,25 +218,23 @@ void *journalMetaCommit(void *args) {
     while (1) {
         // if there is something in the request buffer queue
 
-        sem_wait(&semFull2);
-
+        sem_wait(&bufferFull2);
         pthread_mutex_lock(&lock2);
 
+        // qDisplay(&journalMetaBuffer);
+        struct write_request takenOutItem = dequeue(&journalMetaBuffer);
+        sem_post(&bufferEmpty2);
+        //  printf("****** Dequeue from buffer 2 ******\n");
+        //TODO work need to be done!
+        // Issue journal txe
+        // wait for completion of writing
+        // once done enqueue
+        issue_journal_txe();
 
-           // qDisplay(&journalMetaBuffer);
-            struct write_request takenOutItem = dequeue(&journalMetaBuffer);
-            sem_post(&semEmpty2);
-          //  printf("****** Dequeue from buffer 2 ******\n");
-            //TODO work need to be done!
-            // Issue journal txe
-            // wait for completion of writing
-            // once done enqueue
-            issue_journal_txe();
-
-            sem_wait(&semEmpty3);
-            enqueue(&takenOutItem, &journalCommitBuffer);
-            sem_post(&semFull3);
-            // printf("****** Enqueue in buffer 3 ******\n");
+        sem_wait(&bufferEmpty3);
+        enqueue(&takenOutItem, &journalCommitBuffer);
+        sem_post(&bufferFull3);
+        // printf("****** Enqueue in buffer 3 ******\n");
 
         pthread_mutex_unlock(&lock2);
 //        sem_post(&semFull2);
@@ -262,21 +246,22 @@ void *journalMetaCommit(void *args) {
 void *checkPointMetaData(void *args) {
     while (1) {
 
+        sem_wait(&bufferFull3);
         pthread_mutex_lock(&lock3);
         // if there is something in the request buffer queue
-            // we dequeue the request buffer
-           // qDisplay(&journalCommitBuffer);
-            sem_wait(&semFull3);
-            struct write_request takenOutItem = dequeue(&journalCommitBuffer);
-            sem_post(&semEmpty3);
-           // printf("****** Dequeue from buffer 3 ******\n");
-            //TODO work need to be done!
-            // Issue writing the metadata
-            // wait for completion of writing the metadata
-            // call write _complete
-            checkpoint(&takenOutItem);
-           // printf("****** Write completed ******\n");
+        // we dequeue the request buffer
+        // qDisplay(&journalCommitBuffer);
 
+        struct write_request takenOutItem = dequeue(&journalCommitBuffer);
+        sem_post(&bufferEmpty3);
+
+        // printf("****** Dequeue from buffer 3 ******\n");
+        //TODO work need to be done!
+        // Issue writing the metadata
+        // wait for completion of writing the metadata
+        // call write _complete
+        checkpoint(&takenOutItem);
+        // printf("****** Write completed ******\n");
         pthread_mutex_unlock(&lock3);
 
     }
@@ -322,9 +307,9 @@ void checkpoint(struct write_request *wr) {
  */
 void request_write(struct write_request *wr) {
     // Enqueue new wr in the request buffer
-    sem_wait(&semEmpty0);
+    sem_wait(&bufferEmpty1);
     enqueue(wr, &requestBuffer);
-    sem_post(&semFull0);
+    sem_post(&bufferFull1);
     // sleep(5);
 }
 
