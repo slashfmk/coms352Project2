@@ -16,7 +16,6 @@
 #define NUMBER_OF_THREAD 3
 
 void writeData(struct write_request *wr);
-
 void checkpoint(struct write_request *wr);
 
 /**
@@ -54,15 +53,13 @@ void enqueue(struct write_request *el, struct queue *q) {
     } else {
         printf("Warning: queue %s is full\n", q->qName);
     }
-    // return success;
+
 }
 
 // Removing the first element of the queue and return it
 struct write_request dequeue(struct queue *q) {
     struct write_request ex = q->entries[0];
     struct write_request temp;
-
-    // while()
 
     for (int i = 0; i < q->queueTracker; i++) {
         temp = q->entries[i + 1];
@@ -72,18 +69,17 @@ struct write_request dequeue(struct queue *q) {
     return ex;
 }
 
-// Reset the queue
-//void resetQueue(struct queue *q) {
-//    for (int i = 0; i < BUFFER_SIZE; i++) {
-//        q->entries[i].bitmap = NULL;
-//        q->entries[i].inode = NULL;
-//        q->entries[i].data = NULL;
-//        q->entries[i].bitmap_idx = 0;
-//        q->entries[i].inode_idx = 0;
-//        q->entries[i].data_idx = 0;
-//    }
-//    q->queueTracker = 0;
-//}
+void resetQueue(struct queue *q) {
+   for (int i = 0; i < BUFFER_SIZE; i++) {
+       q->entries[i].bitmap = NULL;
+       q->entries[i].inode = NULL;
+       q->entries[i].data = NULL;
+       q->entries[i].bitmap_idx = 0;
+       q->entries[i].inode_idx = 0;
+       q->entries[i].data_idx = 0;
+   }
+   q->queueTracker = 0;
+}
 
 void qDisplay(struct queue *q) {
     for (int i = 0; i < q->queueTracker; i++) {
@@ -190,11 +186,10 @@ void *journalRequestWrite(void *args) {
 
         sem_wait(&bufferFull1);
         pthread_mutex_lock(&lock1);
-        // if (!isQueueEmpty(&requestBuffer)) {
-        // qDisplay(&requestBuffer);
+
         struct write_request takenOutItem = dequeue(&requestBuffer);
         sem_post(&bufferEmpty1);
-        //  printf("****** Dequeue from byffer1 ******\n");
+
         //TODO work need to be done!
         // call functions to write data and metadata
         // wait for all issued write to complete
@@ -204,27 +199,23 @@ void *journalRequestWrite(void *args) {
         sem_wait(&bufferEmpty2);
         enqueue(&takenOutItem, &journalMetaBuffer);
         sem_post(&bufferFull2);
-        //  printf("****** Enqueued in Buffer 2 ******\n");
-        // check if next buffer is available before enqueuing to it
 
         pthread_mutex_unlock(&lock1);
 
-        // sleep(8);
     }
 }
 
 // check if request buffer is not empty
 void *journalMetaCommit(void *args) {
     while (1) {
-        // if there is something in the request buffer queue
-
+        
         sem_wait(&bufferFull2);
         pthread_mutex_lock(&lock2);
 
         // qDisplay(&journalMetaBuffer);
         struct write_request takenOutItem = dequeue(&journalMetaBuffer);
         sem_post(&bufferEmpty2);
-        //  printf("****** Dequeue from buffer 2 ******\n");
+ 
         //TODO work need to be done!
         // Issue journal txe
         // wait for completion of writing
@@ -234,11 +225,8 @@ void *journalMetaCommit(void *args) {
         sem_wait(&bufferEmpty3);
         enqueue(&takenOutItem, &journalCommitBuffer);
         sem_post(&bufferFull3);
-        // printf("****** Enqueue in buffer 3 ******\n");
 
         pthread_mutex_unlock(&lock2);
-//        sem_post(&semFull2);
-
     }
 }
 
@@ -248,14 +236,10 @@ void *checkPointMetaData(void *args) {
 
         sem_wait(&bufferFull3);
         pthread_mutex_lock(&lock3);
-        // if there is something in the request buffer queue
-        // we dequeue the request buffer
-        // qDisplay(&journalCommitBuffer);
 
         struct write_request takenOutItem = dequeue(&journalCommitBuffer);
         sem_post(&bufferEmpty3);
 
-        // printf("****** Dequeue from buffer 3 ******\n");
         //TODO work need to be done!
         // Issue writing the metadata
         // wait for completion of writing the metadata
@@ -294,7 +278,7 @@ void checkpoint(struct write_request *wr) {
 }
 
 /**
- * # **************  End My code End here
+ * # **************  End My code End here ***********
  */
 
 /* This function is called by the file system to request writing entries to
