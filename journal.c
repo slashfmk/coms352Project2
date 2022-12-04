@@ -16,7 +16,6 @@
 #define NUMBER_OF_THREAD 3
 
 void writeData(struct write_request *wr);
-
 void checkpoint(struct write_request *wr);
 
 /**
@@ -61,8 +60,6 @@ void enqueue(struct write_request *el, struct queue *q) {
 struct write_request dequeue(struct queue *q) {
     struct write_request ex = q->entries[0];
     struct write_request temp;
-
-   // while()
 
     for (int i = 0; i < q->queueTracker; i++) {
         temp = q->entries[i + 1];
@@ -198,7 +195,7 @@ void *journalRequestWrite(void *args) {
         // we dequeue the request buffer
         sem_wait(&semFull0);
         pthread_mutex_lock(&lock1);
-       // if (!isQueueEmpty(&requestBuffer)) {
+     
             // qDisplay(&requestBuffer);
             struct write_request takenOutItem = dequeue(&requestBuffer);
             sem_post(&semEmpty0);
@@ -215,15 +212,12 @@ void *journalRequestWrite(void *args) {
             enqueue(&takenOutItem, &journalMetaBuffer);
             sem_post(&semFull2);
 
-//        } else {
-//            qDisplay(&requestBuffer);
-//            printf("Wasted CPU time thread 1\n");
-//        }
+     
         pthread_mutex_unlock(&lock1);
        // sem_post(&semEmpty1);
 
 
-        // sleep(8);
+        // sleep(5);
     }
 }
 
@@ -309,7 +303,7 @@ void checkpoint(struct write_request *wr) {
 }
 
 /**
- * # **************  End My code End here
+ * # **************  End My code End here ***********
  */
 
 /* This function is called by the file system to request writing entries to
@@ -322,10 +316,11 @@ void checkpoint(struct write_request *wr) {
  */
 void request_write(struct write_request *wr) {
     // Enqueue new wr in the request buffer
+    if(isQueueFull(&requestBuffer)) printf("Buffer queue is full!\n");
     sem_wait(&semEmpty0);
     enqueue(wr, &requestBuffer);
     sem_post(&semFull0);
-    // sleep(5);
+    // sleep(2);
 }
 
 /* This function is called by the block service when writing the txb block
