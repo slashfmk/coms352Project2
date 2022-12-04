@@ -1,6 +1,16 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <pthread.h>
 #include "journal.h"
+
+int requestCount = 0;
+pthread_t testingThread;
+
+void* checkOnce(void* args) {
+	printf("TESTING THREAD IS WORKING ...\n");
+	sleep(3);
+}
+
 
 void issue_journal_txb() {
 	printf("issue journal txb\n");
@@ -23,7 +33,16 @@ void issue_write_data(char* data, int idx) {
 }
 
 void issue_journal_txe() {
-	printf("issue journal txe\n");
+
+printf("issue journal txe\n");
+
+	if(requestCount == 0) {
+		requestCount++;
+		if(pthread_create(&testingThread, NULL, &checkOnce, NULL) != 0) {
+			perror("Thread couldn't be created!!");
+		}
+	}
+
 	journal_txe_complete();
 }
 
@@ -36,4 +55,3 @@ void issue_write_inode(char* inode, int idx) {
 	printf("issue write inode %s at %d\n", inode, idx);
 	write_inode_complete();
 }
-

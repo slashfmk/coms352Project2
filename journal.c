@@ -15,6 +15,7 @@
 // number of needed threads
 #define NUMBER_OF_THREAD 3
 
+
 void writeData(struct write_request *wr);
 void checkpoint(struct write_request *wr);
 
@@ -160,10 +161,6 @@ void init_journal() {
         perror("Failed to create thread 2!");
     }
 
-//    for(int x = 0; x < 3; x++) {
-//        pthread_join(threadsArray[x], NULL);
-//    }
-
     pthread_mutex_destroy(&lock1);
     pthread_mutex_destroy(&lock2);
     pthread_mutex_destroy(&lock3);
@@ -176,14 +173,13 @@ void init_journal() {
 
     sem_destroy(&bufferEmpty3);
     sem_destroy(&bufferFull3);
-
-//    sleep(10);
 }
 
 // check if request buffer is not empty
 void *journalRequestWrite(void *args) {
     while (1) {
 
+        printf("TREAD 1 WORKING ...\n");
         sem_wait(&bufferFull1);
         pthread_mutex_lock(&lock1);
 
@@ -195,6 +191,10 @@ void *journalRequestWrite(void *args) {
         // wait for all issued write to complete
         // once done enqueu
         writeData(&takenOutItem);
+
+        if(isQueueFull(&journalMetaBuffer)) {
+            printf("******** THREAD STUCK BECAUSE OF FULL BUFFER **********\n");
+        }
 
         sem_wait(&bufferEmpty2);
         enqueue(&takenOutItem, &journalMetaBuffer);
@@ -209,10 +209,11 @@ void *journalRequestWrite(void *args) {
 void *journalMetaCommit(void *args) {
     while (1) {
         
+        printf("TREAD 2 WORKING ...\n");
         sem_wait(&bufferFull2);
         pthread_mutex_lock(&lock2);
 
-        // qDisplay(&journalMetaBuffer);
+       // qDisplay(&journalMetaBuffer);
         struct write_request takenOutItem = dequeue(&journalMetaBuffer);
         sem_post(&bufferEmpty2);
  
@@ -220,20 +221,24 @@ void *journalMetaCommit(void *args) {
         // Issue journal txe
         // wait for completion of writing
         // once done enqueue
+        // sleep(3);
         issue_journal_txe();
 
         sem_wait(&bufferEmpty3);
         enqueue(&takenOutItem, &journalCommitBuffer);
         sem_post(&bufferFull3);
 
+// sleep(3);
         pthread_mutex_unlock(&lock2);
     }
+
 }
 
 // check if request buffer is not empty
 void *checkPointMetaData(void *args) {
     while (1) {
 
+        printf("TREAD 3 WORKING ...\n");
         sem_wait(&bufferFull3);
         pthread_mutex_lock(&lock3);
 

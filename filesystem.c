@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
     }
 
     // give the tests time to complete before exiting
-    sleep(5);
+    sleep(10);
 
     return 0;
 }
