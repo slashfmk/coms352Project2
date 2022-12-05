@@ -179,7 +179,7 @@ void init_journal() {
 void *journalRequestWrite(void *args) {
     while (1) {
 
-        printf("TREAD 1 WORKING ...\n");
+        printf("ThREAD 1 IS WORKING ...\n");
         sem_wait(&bufferFull1);
         pthread_mutex_lock(&lock1);
 
@@ -193,6 +193,7 @@ void *journalRequestWrite(void *args) {
         writeData(&takenOutItem);
 
         if(isQueueFull(&journalMetaBuffer)) {
+            printf("THE JOURNAL METADATA BUFFER IS FULL\n");
             printf("******** THREAD STUCK BECAUSE OF FULL BUFFER **********\n");
         }
 
@@ -209,7 +210,7 @@ void *journalRequestWrite(void *args) {
 void *journalMetaCommit(void *args) {
     while (1) {
         
-        printf("TREAD 2 WORKING ...\n");
+        printf("THREAD 2 IS WORKING ...\n");
         sem_wait(&bufferFull2);
         pthread_mutex_lock(&lock2);
 
@@ -224,11 +225,14 @@ void *journalMetaCommit(void *args) {
         // sleep(3);
         issue_journal_txe();
 
+         if(isQueueFull(&journalCommitBuffer)) {
+            printf("THE JOURNAL COMMIT COMPLETED BUFFER IS FULL\n");
+        }
+
         sem_wait(&bufferEmpty3);
         enqueue(&takenOutItem, &journalCommitBuffer);
         sem_post(&bufferFull3);
 
-// sleep(3);
         pthread_mutex_unlock(&lock2);
     }
 
@@ -238,7 +242,7 @@ void *journalMetaCommit(void *args) {
 void *checkPointMetaData(void *args) {
     while (1) {
 
-        printf("TREAD 3 WORKING ...\n");
+        printf("THREAD 3 IS WORKING ...\n");
         sem_wait(&bufferFull3);
         pthread_mutex_lock(&lock3);
 
@@ -296,6 +300,9 @@ void checkpoint(struct write_request *wr) {
  */
 void request_write(struct write_request *wr) {
     // Enqueue new wr in the request buffer
+    if(isQueueFull(&requestBuffer)) {
+        printf("REQUEST BUFFER IS FULL\n");
+    }
     sem_wait(&bufferEmpty1);
     enqueue(wr, &requestBuffer);
     sem_post(&bufferFull1);

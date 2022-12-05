@@ -7,8 +7,7 @@ int requestCount = 0;
 pthread_t testingThread;
 
 void* checkOnce(void* args) {
-	printf("TESTING THREAD IS WORKING ...\n");
-	sleep(3);
+	sleep(1);
 }
 
 
